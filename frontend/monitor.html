@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.2/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .monitor-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        .device-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .device-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #2c3e50;
+        }
+        
+        .device-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .device-info-item {
+            background: #f0f5ff;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .chart-container {
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            height: 400px;
+            overflow-y: auto;
+            display: block;
+        }
+        
+        .data-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th, .data-table td {
+            border: 1px solid #eee;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .data-table th {
+            background: #f0f5ff;
+            position: sticky;
+            top: 0;
+        }
+        
+        .data-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .data-table tbody tr:hover {
+            background-color: #f0f5ff;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="monitor-container" v-if="device">
+            <!-- 设备标题和基本信息 -->
+            <div class="device-header">
+                <h1>{{ device.name }}</h1>
+                <div class="device-info">
+                    <div class="device-info-item">设备ID: {{ device.id }}</div>
+                    <div class="device-info-item">IP地址: {{ device.ip }}</div>
+                    <div class="device-info-item">端口: {{ device.port }}</div>
+                    <div class="device-info-item">状态: {{ deviceStatus }}</div>
+                </div>
+            </div>
+            
+            <!-- 概念偏移图表 -->
+            <div class="chart-container" ref="chartContainer"></div>
+            
+            <!-- 数据表格 -->
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th v-for="(header, index) in tableHeaders" :key="index">{{ header }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
+                            <td>{{ row.timestamp }}</td>
+                            <td v-for="(header, colIndex) in tableHeaders" :key="colIndex">
+                                {{ row.values[colIndex] }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div v-else class="loading">
+            加载设备信息...
+        </div>
+    </div>
+    
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                device: null,
+                chartInstance: null,
+                chartData: [],
+                tableData: [],
+                tableHeaders: [],
+                deviceStatus: '在线',
+                dataTimer: null
+            },
+            mounted() {
+                // 从父窗口接收设备信息
+                window.addEventListener('message', (event) => {
+                    if (event.data.type === 'device-info') {
+                        this.device = event.data.device;
+                        
+                        // 初始化图表和表格
+                        this.$nextTick(() => {
+                            this.initChart();
+                            this.fetchDeviceModel();
+                        });
+                    }
+                });
+            },
+            beforeDestroy() {
+                // 清除定时器
+                if (this.dataTimer) {
+                    clearInterval(this.dataTimer);
+                }
+                
+                // 销毁图表实例
+                if (this.chartInstance) {
+                    this.chartInstance.dispose();
+                }
+            },
+            methods: {
+                // 初始化ECharts图表
+                initChart() {
+                    const chartDom = this.$refs.chartContainer;
+                    this.chartInstance = echarts.init(chartDom);
+                    
+                    const option = {
+                        title: {
+                            text: '概念偏移指数监控',
+                            left: 'center'
+                        },
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: function(params) {
+                                const param = params[0];
+                                return `${param.axisValue}<br />${param.marker}偏移指数：${param.data.toFixed(4)}`;
+                            }
+                        },
+                        xAxis: {
+                            type: 'time',
+                            name: '时间',
+                            axisLabel: {
+                                formatter: '{HH}:{mm}:{ss}'
+                            }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: '概念偏移指数',
+                            min: 0,
+                            max: 1
+                        },
+                        dataZoom: [
+                            {
+                                type: 'inside',
+                                start: 0,
+                                end: 100
+                            },
+                            {
+                                start: 0,
+                                end: 100
+                            }
+                        ],
+                        series: [
+                            {
+                                name: '偏移指数',
+                                type: 'line',
+                                smooth: true,
+                                symbol: 'none',
+                                areaStyle: {
+                                    opacity: 0.3
+                                },
+                                data: []
+                            }
+                        ]
+                    };
+                    
+                    this.chartInstance.setOption(option);
+                    
+                    // 开始模拟数据
+                    this.startFetchingData();
+                },
+                
+                // 获取设备模型信息，用于构建表格
+                async fetchDeviceModel() {
+                    try {
+                        // 这里应该根据device.model_id来获取模型信息
+                        // 目前先模拟维度信息
+                        const dimensions = 5; // 假设有5个维度
+                        this.tableHeaders = Array.from({length: dimensions}, (_, i) => `维度 ${i+1}`);
+                        
+                        // 生成模拟表格数据
+                        this.generateMockTableData();
+                    } catch (error) {
+                        console.error('获取设备模型失败:', error);
+                    }
+                },
+                
+                // 开始获取数据（模拟数据）
+                startFetchingData() {
+                    // 先生成初始数据
+                    const now = new Date();
+                    for (let i = 0; i < 20; i++) {
+                        const time = new Date(now.getTime() - (20 - i) * 30000); // 每30秒一个点
+                        this.chartData.push([
+                            time.getTime(),
+                            Math.random() * 0.3 + 0.1 // 生成0.1到0.4之间的随机值
+                        ]);
+                    }
+                    
+                    this.updateChart();
+                    
+                    // 设置定时器，模拟实时数据
+                    this.dataTimer = setInterval(() => {
+                        const now = new Date();
+                        // 添加新数据点
+                        this.chartData.push([
+                            now.getTime(),
+                            Math.random() * 0.3 + 0.1
+                        ]);
+                        
+                        // 如果数据点过多，移除旧数据
+                        if (this.chartData.length > 100) {
+                            this.chartData.shift();
+                        }
+                        
+                        // 更新图表
+                        this.updateChart();
+                        
+                        // 更新表格数据
+                        this.updateTableData();
+                    }, 3000); // 每3秒更新一次
+                },
+                
+                // 更新图表
+                updateChart() {
+                    if (this.chartInstance) {
+                        // 格式转换：将[time, value]格式转换为图表需要的格式
+                        const seriesData = this.chartData.map(item => ({
+                            name: new Date(item[0]).toLocaleTimeString(),
+                            value: [item[0], item[1]]
+                        }));
+                        
+                        this.chartInstance.setOption({
+                            series: [{
+                                data: seriesData
+                            }]
+                        });
+                    }
+                },
+                
+                // 生成模拟表格数据
+                generateMockTableData() {
+                    this.tableData = [];
+                    const now = new Date();
+                    
+                    for (let i = 0; i < 20; i++) {
+                        const time = new Date(now.getTime() - (20 - i) * 30000);
+                        const values = Array.from({length: this.tableHeaders.length}, () => 
+                            (Math.random() * 100).toFixed(2)
+                        );
+                        
+                        this.tableData.push({
+                            timestamp: time.toLocaleTimeString(),
+                            values: values
+                        });
+                    }
+                },
+                
+                // 更新表格数据
+                updateTableData() {
+                    const now = new Date();
+                    const values = Array.from({length: this.tableHeaders.length}, () => 
+                        (Math.random() * 100).toFixed(2)
+                    );
+                    
+                    this.tableData.push({
+                        timestamp: now.toLocaleTimeString(),
+                        values: values
+                    });
+                    
+                    // 限制表格数据数量
+                    if (this.tableData.length > 100) {
+                        this.tableData.shift();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

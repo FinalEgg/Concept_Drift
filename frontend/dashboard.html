@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制面板 - 概念漂移检测系统</title>
+    <link rel="stylesheet" href="static/css/style_welcome.css">
+    <link rel="stylesheet" href="static/css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 背景 -->
+        <div class="background"></div>
+
+        <!-- 主容器 -->
+        <div class="dashboard-container">
+            <!-- 侧边栏 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>边缘设备列表</h3>
+                </div>
+                <div class="device-list">
+                    <!-- 设备标签列表 -->
+                    <div v-for="device in devices" 
+                         :key="device.id" 
+                         class="device-tab"
+                         :class="{ active: selectedDevice === device.id }"
+                         @click="selectDevice(device.id)">
+                        {{ device.name }}
+                    </div>
+                    <!-- 添加设备按钮 -->
+                    <div class="device-tab add-device" @click="showAddDevice">
+                        <span>+</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主视图区域 -->
+            <div class="main-view">
+                <!-- 设备管理视图 -->
+                <div v-if="selectedDevice && !showingAddDevice" class="device-view">
+                    <iframe ref="deviceIframe" :src="'/device/' + selectedDevice" frameborder="0"></iframe>
+                </div>
+                <!-- 添加设备视图 -->
+                <div v-if="showingAddDevice" class="add-device-view">
+                    <iframe src="/add-device" frameborder="0"></iframe>
+                </div>
+                <!-- 欢迎页面 -->
+                <div v-if="!selectedDevice && !showingAddDevice" class="welcome-view">
+                    <h2>欢迎使用概念漂移检测系统</h2>
+                    <p>请从左侧选择一个设备或添加新设备</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <script>
+            new Vue({
+                el: '#app',
+                data: {
+                    devices: [],
+                    selectedDevice: null,
+                    showingAddDevice: false,
+                    currentUser: null
+                },
+                methods: {
+                    async fetchDevices() {
+                        try {
+                            const userStr = localStorage.getItem('user');
+                            if (!userStr) {
+                                window.location.href = '/login.html';
+                                return;
+                            }
+                            this.currentUser = JSON.parse(userStr);
+                            const response = await fetch(`/api/devices/${this.currentUser.user_id}`);
+                            const data = await response.json();
+                            if (data.success) {
+                                this.devices = data.devices;
+                            }
+                        } catch (error) {
+                            console.error('获取设备列表失败:', error);
+                        }
+                    },
+                    selectDevice(deviceId) {
+                        const device = this.devices.find(d => d.id === deviceId);
+                        this.selectedDevice = deviceId;
+                        this.showingAddDevice = false;
+                        this.$nextTick(() => {
+                            const iframe = this.$refs.deviceIframe;
+                            if (iframe) {
+                                iframe.onload = () => {
+                                    iframe.contentWindow.postMessage({
+                                        type: 'device-info',
+                                        device: device
+                                    }, '*');
+                                };
+                            }
+                        });
+                    },
+                    showAddDevice() {
+                        this.selectedDevice = null;
+                        this.showingAddDevice = true;
+                    },
+                    checkAuth() {
+                        if (!localStorage.getItem('user')) {
+                            window.location.href = '/login.html';
+                        }
+                    }
+                },
+                mounted() {
+                    this.checkAuth();
+                    this.fetchDevices();
+                }
+            });
+        </script>
+</body>
+</html>

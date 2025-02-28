@@ -1,0 +1,62 @@
+<html lang="zh">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>概念漂移检测系统</title>
+        <link rel="stylesheet" href="static/css/welcome.css">
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    </head>
+  
+    <body>
+        <div id="app">
+        <!-- 背景 -->
+            <div class="background"></div>
+        
+            <div class="container">
+                <!-- 欢迎区 -->
+                <div class="welcome-section">
+                    <h1 class="title">欢迎来到概念漂移检测系统</h1>
+                    <div class="buttons">
+                        <button class="btn" @click="goToLogin">登录</button>
+                        <button class="btn" @click="goToRegister">注册</button>
+                    </div>
+                </div>
+
+            <!-- 系统介绍区 -->
+            <div class="intro-section">
+                <h2>系统介绍</h2>
+                <p>本系统是一个专业的概念漂移检测平台，主要用于在边缘计算环境下进行数据流的实时监控和概念漂移检测。</p>
+
+                <h3>主要功能：</h3>
+                <ul>
+                    <li>实时数据流监控</li>
+                    <li>概念漂移检测</li>
+                    <li>边缘设备管理</li>
+                    <li>数据可视化展示</li>
+                </ul>
+
+                <h3>技术特点：</h3>
+                <ul>
+                    <li>高效的实时处理能力</li>
+                    <li>准确的漂移检测算法</li>
+                    <li>友好的用户界面</li>
+                    <li>可扩展的系统架构</li>
+                </ul>
+                </div>
+            </div>
+        </div>
+        <script>
+            new Vue({
+                el: '#app',
+                methods: {
+                    goToLogin() {
+                        window.location.href = '/login.html';
+                    },
+                    goToRegister() {
+                        window.location.href = '/register.html';
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>

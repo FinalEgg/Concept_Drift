@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加设备</title>
+    <link rel="stylesheet" href="static/css/auth.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="auth-container">
+            <div class="auth-box">
+                <h2 class="auth-title">添加新设备</h2>
+                <form @submit.prevent="handleAddDevice">
+                    <div class="form-group">
+                        <label for="deviceName">设备名称</label>
+                        <input type="text" id="deviceName" v-model="deviceName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ipAddress">IP地址</label>
+                        <input type="text" id="ipAddress" v-model="ipAddress" 
+                               pattern="^(\d{1,3}\.){3}\d{1,3}$" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="port">端口号</label>
+                        <input type="number" id="port" v-model="port" 
+                               min="1" max="65535" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="model">数据模型</label>
+                        <select v-model="selectedModel" id="model" required>
+                            <option value="">请选择数据模型</option>
+                            <option v-for="model in models" 
+                                    :key="model.model_id" 
+                                    :value="model.model_id">
+                                {{ model.model_name }}
+                            </option>
+                        </select>
+                        <a class="model-create-link" @click="goToCreateModel">添加新的数据模型</a>
+                    </div>
+                    
+                    <button type="submit" class="auth-btn">添加设备</button>
+                    
+                    <div class="error-message" v-if="errorMessage">
+                        {{ errorMessage }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    new Vue({
+        el: '#app',
+        data: {
+            deviceName: '',
+            ipAddress: '',
+            port: null,
+            errorMessage: '',
+            models: [],
+            selectedModel: ''
+        },
+        async mounted() {
+            await this.fetchModels();
+        },
+        methods: {
+            async fetchModels() {
+                try {
+                    const response = await fetch('/api/models');
+                    const data = await response.json();
+                    if (data.success) {
+                        this.models = data.models;
+                    }
+                } catch (error) {
+                    console.error('获取模型列表失败:', error);
+                    this.errorMessage = '加载数据模型失败';
+                }
+            },
+            
+            goToCreateModel() {
+                const deviceData = {
+                    deviceName: this.deviceName,
+                    ipAddress: this.ipAddress,
+                    port: this.port
+                };
+                localStorage.setItem('pendingDevice', JSON.stringify(deviceData));
+                // 定位到 dashboard 的主视图 iframe 并修改 src
+                const mainIframe = window.parent.document.querySelector('.main-view iframe');
+                if (mainIframe) {
+                    mainIframe.src = '/create-model.html';
+                }
+            },
+            
+            async handleAddDevice() {
+                try {
+                    if (this.selectedModel === 'new') {
+                        return;
+                    }
+                    
+                    const userStr = localStorage.getItem('user');
+                    if (!userStr) {
+                        window.parent.location.href = '/login.html';
+                        return;
+                    }
+                    const user = JSON.parse(userStr);
+
+                    const response = await fetch('/api/devices/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            userId: user.user_id,
+                            deviceName: this.deviceName,
+                            ipAddress: this.ipAddress,
+                            port: this.port,
+                            modelId: this.selectedModel
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        window.parent.location.reload();
+                    } else {
+                        this.errorMessage = data.message || '添加设备失败';
+                    }
+                } catch (error) {
+                    console.error('添加设备失败:', error);
+                    this.errorMessage = '服务器错误，请稍后重试';
+                }
+            }
+        }
+    });
+    </script>
+</body>
+</html>

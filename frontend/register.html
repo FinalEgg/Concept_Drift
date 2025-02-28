@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - 概念漂移检测系统</title>
+  <link rel="stylesheet" href="static/css/welcome.css">
+  <link rel="stylesheet" href="static/css/auth.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- 背景 -->
+        <div class="background"></div>
+
+        <!-- 用户认证容器 -->
+        <div class="auth-container">
+        <div class="auth-box">
+            <h2 class="auth-title">用户注册</h2>
+
+            <!-- 注册表单 -->
+            <form @submit.prevent="handleRegister">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" v-model="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" v-model="password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">确认密码</label>
+                <input type="password" id="confirmPassword" v-model="confirmPassword" required>
+            </div>
+
+            <button type="submit" class="auth-btn">注册</button>
+
+            <!-- 错误信息 -->
+            <div class="error-message" v-if="errorMessage">
+                {{ errorMessage }}
+            </div>
+
+            <!-- 登录链接 -->
+            <div class="auth-link">
+                已有账号？<a href="/login.html">立即登录</a>
+            </div>
+            </form>
+        </div>
+        </div>
+    </div>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                username: '',
+                password: '',
+                confirmPassword: '',
+                errorMessage: '',
+                successMessage: ''  // 添加成功消息
+            },
+            methods: {
+                async handleRegister() {
+                    try {
+                        // 重置消息
+                        this.errorMessage = '';
+                        this.successMessage = '';
+    
+                        // 表单验证
+                        if (!this.username || !this.password || !this.confirmPassword) {
+                            this.errorMessage = '所有字段都必须填写';
+                            return;
+                        }
+    
+                        if (this.password !== this.confirmPassword) {
+                            this.errorMessage = '两次输入的密码不一致';
+                            return;
+                        }
+    
+                        // 发送注册请求
+                        const response = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                username: this.username,
+                                password: this.password
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        // 在 handleRegister 方法中的注册成功处理部分
+                        if (data.success) {
+                            // 注册成功
+                            this.successMessage = '注册成功！3秒后将跳转到登录页面...';
+                            
+                            // 清空表单
+                            this.username = '';
+                            this.password = '';
+                            this.confirmPassword = '';
+                            
+                            // 3秒后跳转到登录页面
+                            setTimeout(() => {
+                                window.location.href = '/login.html';
+                            }, 3000);
+                        } else {
+                            // 显示错误信息
+                            this.errorMessage = data.message || '注册失败';
+                        }
+                    } catch (error) {
+                        console.error('注册请求失败:', error);
+                        this.errorMessage = '服务器错误，请稍后重试';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

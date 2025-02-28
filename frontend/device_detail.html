@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备详情</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+</head>
+<body>
+    <div id="app">
+        <div v-if="device">
+            <h2>{{ device.name }}</h2>
+            <p>设备ID: {{ device.id }}</p>
+            <p>IP地址: {{ device.ip }}</p>
+            <p>端口: {{ device.port }}</p>
+            <!-- 其他设备信息和控制界面 -->
+        </div>
+    </div>
+    
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                device: null
+            },
+            mounted() {
+                window.addEventListener('message', (event) => {
+                    if (event.data.type === 'device-info') {
+                        this.device = event.data.device;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

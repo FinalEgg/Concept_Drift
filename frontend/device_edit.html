@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑设备</title>
+    <link rel="stylesheet" href="/static/css/auth.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.14/vue.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="auth-container">
+            <div class="auth-box">
+                <h2 class="auth-title">编辑设备</h2>
+                <!-- 设备ID不在表单中显示，而是直接隐藏，通过 URL 获取 -->
+                <form @submit.prevent="handleUpdateDevice">
+                    <div class="form-group">
+                        <label for="deviceName">设备名称</label>
+                        <input type="text" id="deviceName" v-model="deviceName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ipAddress">IP地址</label>
+                        <input type="text" id="ipAddress" v-model="ipAddress" pattern="^(\d{1,3}\.){3}\d{1,3}$" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="port">端口号</label>
+                        <input type="number" id="port" v-model="port" min="1" max="65535" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dimensions">数据维度数量</label>
+                        <input type="number" id="dimensions" v-model="dimensions" min="1" required>
+                    </div>
+                    <button type="submit" class="auth-btn">更新设备</button>
+                    <div class="error-message" v-if="errorMessage">
+                        {{ errorMessage }}
+                    </div>
+                    <div class="success-message" v-if="successMessage">
+                        {{ successMessage }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    new Vue({
+        el: '#app',
+        data: {
+            deviceId: '',
+            deviceName: '',
+            ipAddress: '',
+            port: null,
+            dimensions: null,
+            errorMessage: '',
+            successMessage: ''
+        },
+        created() {
+            // 从 URL query 或路径中获取 deviceId（仅用于更新，不允许修改）
+            const searchParams = new URLSearchParams(window.location.search);
+            let id = searchParams.get('deviceId');
+            if (!id) {
+                const parts = window.location.pathname.split('/');
+                id = parts[parts.length - 1];
+            }
+            if (id) {
+                this.deviceId = id;
+                this.fetchDeviceDetail();
+            } else {
+                this.errorMessage = '缺少设备ID';
+            }
+        },
+        methods: {
+            async fetchDeviceDetail() {
+                try {
+                    const response = await fetch(`/api/devices/detail?deviceId=${this.deviceId}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        const device = data.device;
+                        this.deviceName = device.name;
+                        this.ipAddress = device.ip;
+                        this.port = device.port;
+                        this.dimensions = device.dim;
+                    } else {
+                        this.errorMessage = data.message || '获取设备详情失败';
+                    }
+                } catch (error) {
+                    console.error('获取设备详情失败:', error);
+                    this.errorMessage = '服务器错误，请稍后重试';
+                }
+            },
+            async handleUpdateDevice() {
+                if (!this.deviceId) {
+                    this.errorMessage = '缺少设备ID，无法更新';
+                    return;
+                }
+                try {
+                    const payload = {
+                        deviceId: this.deviceId, // 保留原来的设备ID
+                        deviceName: this.deviceName,
+                        ipAddress: this.ipAddress,
+                        port: this.port,
+                        dimensions: this.dimensions
+                    };
+                    const response = await fetch('/api/devices/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('设备更新成功');
+                        // 通知父窗口（dashboard）更新侧边栏和主视图
+                        window.parent.postMessage({ type: 'device-updated', device: data.device }, '*');
+                    } else {
+                        this.errorMessage = data.message || '更新设备失败';
+                    }
+                } catch (error) {
+                    console.error('更新设备失败:', error);
+                    this.errorMessage = '服务器错误，请稍后重试';
+                }
+            }
+        }
+    });
+    </script>
+</body>
+</html>

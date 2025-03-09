@@ -27,45 +27,20 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `studd`.`Model`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `studd`.`Model` (
-  `model_id` CHAR(36) NOT NULL,
-  `user_id` CHAR(36) NOT NULL,
-  `model_name` VARCHAR(45) NULL,
-  `data_dim` INT NOT NULL,
-  `dataType` VARCHAR(100) NOT NULL,
-  PRIMARY KEY (`model_id`),
-  INDEX `user_id_idx` (`user_id` ASC) VISIBLE,
-  CONSTRAINT `user_id`
-    FOREIGN KEY (`user_id`)
-    REFERENCES `studd`.`User` (`user_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
 -- Table `studd`.`Device`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `studd`.`Device` (
   `device_id` CHAR(36) NOT NULL,
   `user_id` CHAR(36) NOT NULL,
-  `model_id` CHAR(36) NOT NULL,
   `device_name` VARCHAR(45) NOT NULL,
   `ip_address` VARCHAR(15) NOT NULL,
   `port` INT NOT NULL,
+  `dim` INT NOT NULL,
   PRIMARY KEY (`device_id`),
   INDEX `user_id_idx` (`user_id` ASC) VISIBLE,
-  INDEX `model_id_idx` (`model_id` ASC) VISIBLE,
-  CONSTRAINT `user_id`
+  CONSTRAINT `device_user_id`
     FOREIGN KEY (`user_id`)
     REFERENCES `studd`.`User` (`user_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `model_id`
-    FOREIGN KEY (`model_id`)
-    REFERENCES `studd`.`Model` (`model_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;

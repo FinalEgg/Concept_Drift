@@ -1,0 +1,94 @@
+/* 基础样式 */
+body {
+    font-family: 'Microsoft YaHei', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f7fa;
+    color: #333;
+}
+
+/* 主容器 */
+.monitor-container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+/* 设备头信息 */
+.device-header {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.device-header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: #2c3e50;
+}
+
+.device-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.device-info-item {
+    background: #f0f5ff;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* 图表区域 */
+.chart-container {
+    height: 400px;
+    margin-bottom: 20px;
+}
+
+/* 数据表格 */
+.data-table {
+    border: 1px solid #000;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow: auto; /* 同时启用横向和纵向滚动 */
+    margin-top: 20px;
+}
+
+/* 内部容器（取消单独滚动，仅用于布局） */
+.table-scroll-container {
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* 表格样式 */
+.data-table table {
+    border-collapse: collapse;
+    width: max-content;
+}
+
+.data-table th,
+.data-table td {
+    width: 150px;
+    border: 1px solid #000;
+    padding: 10px;
+    text-align: center;
+}
+
+/* 固定表头 */
+.data-table th {
+    position: sticky;
+    top: 0;
+    background: #fff;
+}
+
+/* 加载状态 */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 300px;
+    color: #999;
+}

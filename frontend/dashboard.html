@@ -6,7 +6,7 @@
     <title>控制面板 - 概念漂移检测系统</title>
     <link rel="stylesheet" href="static/css/style_welcome.css">
     <link rel="stylesheet" href="static/css/dashboard.css">
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.14/vue.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -111,6 +111,41 @@
                 mounted() {
                     this.checkAuth();
                     this.fetchDevices();
+                    window.addEventListener('message', (event) => {
+                        if (event.data.type === 'device-added') {
+                            const newDevice = event.data.device;
+                            // 更新设备列表，并切换到新设备的monitor页面
+                            this.devices.push(newDevice);
+                            this.selectedDevice = newDevice.id;
+                            this.showingAddDevice = false;
+                            this.$nextTick(() => {
+                                const iframe = this.$refs.deviceIframe;
+                                if (iframe) {
+                                    iframe.onload = () => {
+                                        iframe.contentWindow.postMessage({
+                                            type: 'device-info',
+                                            device: newDevice
+                                        }, '*');
+                                    };
+                                }
+                            });
+                        }
+                        if (event.data.type === 'device-updated') {
+                            const updatedDevice = event.data.device;
+                            // 更新侧边栏中对应设备数据
+                            const index = this.devices.findIndex(d => d.id === updatedDevice.id);
+                            if (index !== -1) {
+                                this.$set(this.devices, index, updatedDevice);
+                            }
+                            // 更新主视图iframe为修改后的monitor页面
+                            this.selectedDevice = updatedDevice.id;
+                            this.showingAddDevice = false;
+                            if (this.$refs.deviceIframe) {
+                                this.$refs.deviceIframe.src = `/device/${updatedDevice.id}`;
+                            }
+                        }
+                    });
+                                 
                 }
             });
         </script>

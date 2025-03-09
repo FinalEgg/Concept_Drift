@@ -2,7 +2,6 @@ from uuid import uuid4
 from enum import Enum
 from typing import Dict, Any, Optional
 from datetime import datetime
-from .dataModel import DataModel
 
 class DeviceStatus(Enum):
     OFFLINE = "offline"
@@ -18,7 +17,7 @@ class EdgeDevice:
         self._port = port
         self._model_id = model_id
         self._status = DeviceStatus.OFFLINE
-        self._data_model = None  # 初始化 data_model 为 None
+        self._dim = None       # 新增：初始化 _dim 属性
 
     @property
     def device_id(self) -> str:
@@ -37,23 +36,22 @@ class EdgeDevice:
         return self._port
 
     @property
-    def data_model(self) -> Optional[DataModel]:
-        return self._data_model
-
-    @data_model.setter
-    def data_model(self, model: DataModel):
-        self._data_model = model
-
-    def validate_data(self, data: Dict[str, Any]) -> bool:
-        """验证数据是否符合数据模型的格式要求"""
-        if self._data_model is None:
-            return False
-        return self._data_model.validate(data)
-
-    @property
     def model_id(self) -> str:
         return self._model_id
 
     @model_id.setter
     def model_id(self, value: str):
         self._model_id = value
+
+    @property
+    def dim(self) -> int:
+        """公开设备数据维度属性"""
+        return self._dim
+
+    @dim.setter
+    def dim(self, value: int):
+        self._dim = value
+
+    def validate_data(self, data: Dict[str, Any]) -> bool:
+        """由于已删除数据模型，此处默认返回True"""
+        return True

@@ -24,7 +24,7 @@
                     </div>
                     <!-- 操作按钮：连接/中断连接 -->
                     <button class="auth-btn" v-if="deviceStatus==='离线'" @click="connectDevice">连接设备</button>
-                    <button class="auth-btn" v-else @click="disconnectDevice">中断连接</button>
+                    <button class="auth-btn" v-else @click="disconnectDevice('手动断开')">中断连接</button>
                     <!-- 反馈信息 -->
                     <div v-if="feedbackMessage" style="margin-top: 10px; color: #f44336;">
                         {{ feedbackMessage }}
@@ -141,41 +141,42 @@
                     // 连接设备：调用后端 API（利用 ConnectionManager）尝试连接，连接成功后启动接收真实数据
                     connectDevice() {
                         if (!this.device) return;
-                        fetch(`/api/connect?ip=${this.device.ip}&port=${this.device.port}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    this.deviceStatus = '在线';
-                                    if (this.dataTimer) {
-                                        clearInterval(this.dataTimer);
-                                        this.dataTimer = null;
-                                    }
-                                    this.startFetchingRealData();
-                                    this.feedbackMessage = '连接成功';
-                                    console.log('连接成功');
-                                    alert('连接成功');
-                                } else {
-                                    this.feedbackMessage = '连接失败，请检查设备网络状态';
-                                    console.error('连接失败');
-                                    alert('连接失败，请检查设备网络状态');
-                                }
-                            })
-                            .catch(err => {
-                                this.feedbackMessage = '连接请求错误';
-                                console.error('连接请求错误:', err);
-                                alert('连接请求错误');
+                        const url = `/api/monitor/connect?ip=${this.device.ip}&port=${this.device.port}`;
+                        this.eventSource = new EventSource(url);
+                        this.eventSource.onopen = () => {
+                            this.deviceStatus = '在线';
+                            this.feedbackMessage = '连接成功';
+                            alert('连接成功');
+                            console.log('连接成功');
+                        };
+                        this.eventSource.onmessage = (event) => {
+                            const messageData = event.data;
+                            // 以下处理数据的逻辑
+                            const dataArr = messageData.trim().split(',');
+                            if (dataArr.length < 1) return;
+                            const driftIndex = parseFloat(dataArr[0]);
+                            const now = new Date();
+                            this.chartData.push([now.getTime(), driftIndex]);
+                            if (this.chartData.length > 100) this.chartData.shift();
+                            this.updateChart();
+                            const values = dataArr.slice(1).map(v => parseFloat(v).toFixed(4));
+                            this.tableData.push({
+                                timestamp: now.toLocaleTimeString(),
+                                values: values
                             });
+                            if (this.tableData.length > 100) this.tableData.shift();
+                        };
+                        this.eventSource.onerror = (error) => {
+                            console.error("连接出错：", error);
+                            this.disconnectDevice("连接错误");
+                        };
                     },
                     // 中断连接，停止实时数据接收，并清空图表和表格
                     // 可接受一个断连原因，用于提示用户具体断连原因
                     disconnectDevice(reason) {
-                        // 如果传入的参数是事件对象，则忽略
-                        if (reason && reason.constructor && reason.constructor.name === "PointerEvent") {
-                            reason = '';
-                        }
-                        if (this.realDataTimer) {
-                            clearInterval(this.realDataTimer);
-                            this.realDataTimer = null;
+                        if (this.eventSource) {
+                            this.eventSource.close();
+                            this.eventSource = null;
                         }
                         this.deviceStatus = '离线';
                         this.feedbackMessage = reason || '连接已中断';
@@ -190,30 +191,32 @@
                     },
                     // 接收真实数据更新图表和表格（保留接收 simulation 设备数据展示的功能）
                     startFetchingRealData() {
-                        // 预期数据长度：1（用于偏移指数）+ (device.dim + 1)，即 device.dim 是特征个数，最后一位作为标签
-                        const expectedLength = parseInt(this.device.dim) + 2;
-                        this.realDataTimer = setInterval(() => {
+                        const url = `/api/monitor/connect?ip=${this.device.ip}&port=${this.device.port}`;
+                        this.eventSource = new EventSource(url);
+                        this.eventSource.onmessage = (event) => {
+                            const messageData = event.data;
+                            // 假设后端传来的数据为以逗号分隔的数值字符串，
+                            // 第一项为偏移指数，后续为设备的数据（特征及标签）
+                            const dataArr = messageData.trim().split(',');
+                            if (dataArr.length < 1) return;
+                            const driftIndex = parseFloat(dataArr[0]);
                             const now = new Date();
-                            // 根据设备设置生成模拟数据
-                            const data = Array.from({ length: expectedLength }, () => parseFloat((Math.random()).toFixed(4)));
-                            // 判断接收数据是否符合设备配置（除去第一项偏移指数后，数据数目应等于 tableHeaders 的长度）
-                            if (data.length - 1 !== this.tableHeaders.length) {
-                                this.disconnectDevice("数据维度不匹配，已自动断连");
-                                return;
-                            }
-                            const driftIndex = data[0];
+                            // 更新图表数据
                             this.chartData.push([now.getTime(), driftIndex]);
                             if (this.chartData.length > 100) this.chartData.shift();
                             this.updateChart();
-
-                            // 更新表格：取出除第一项之外的数据（特征和标签）
-                            const values = data.slice(1).map(v => v.toFixed(4));
+                            // 更新表格数据，取除第一项之外的数据
+                            const values = dataArr.slice(1).map(v => parseFloat(v).toFixed(4));
                             this.tableData.push({
                                 timestamp: now.toLocaleTimeString(),
                                 values: values
                             });
                             if (this.tableData.length > 100) this.tableData.shift();
-                        }, 1000);
+                        };
+                        this.eventSource.onerror = (error) => {
+                            console.error("接收数据出错：", error);
+                            this.disconnectDevice("连接断开");
+                        };
                     },
                     updateChart() {
                         if (this.chartInstance) {

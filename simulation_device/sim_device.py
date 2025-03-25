@@ -54,3 +54,5 @@ class SimDevice:
             print(f"发送数据过程中出现错误: {e}")
         finally:
             conn.close()
+    
+    

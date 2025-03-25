@@ -1,6 +1,6 @@
 # Python
 from flask import jsonify
-from backend.app.boundaries.database.device_repository import DeviceRepository
+from backend.app.controllers.boundaries.database.device_repository import DeviceRepository
 from backend.app.entities.edgeDevice import EdgeDevice
 
 class DeviceController:

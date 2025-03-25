@@ -1,6 +1,6 @@
 from flask import jsonify, request, make_response
 import json
-from backend.app.boundaries.database.user_repository import UserRepository
+from backend.app.controllers.boundaries.database.user_repository import UserRepository
 from backend.app.entities.user import User
 
 class AuthController:

@@ -3,7 +3,7 @@
 from flask import Blueprint, send_from_directory, request, jsonify
 from backend.app.controllers.device_controller import DeviceController
 from backend.app.controllers.auth_controller import AuthController
-from backend.app.boundaries.communication.connection_manager import ConnectionManager
+from backend.app.controllers.monitor_controller import MonitorController
 import json
 
 main = Blueprint('main', __name__)
@@ -57,20 +57,14 @@ def add_device():
     data = request.get_json()
     return device_controller.add_device(data)
 
-# 新增：连接设备的 API 路由
-@main.route('/api/connect', methods=['GET'])
-def connect_device_api():
+@main.route('/api/monitor/connect', methods=['GET'])
+def monitor_connect():
     ip = request.args.get('ip')
     port = request.args.get('port')
     if not ip or not port:
         return jsonify({'success': False, 'message': '缺少ip或port参数'}), 400
-
-    connection_manager = ConnectionManager()
-    sock = connection_manager.connect_to_device(ip, int(port))
-    if sock:
-        return jsonify({'success': True, 'message': f'成功连接到设备：{ip}:{port}'})
-    else:
-        return jsonify({'success': False, 'message': f'连接设备 {ip}:{port} 失败'}), 500
+    monitor_controller = MonitorController()
+    return monitor_controller.start_session(ip, int(port))
     
 @main.route('/api/devices/update', methods=['POST'])
 def update_device():

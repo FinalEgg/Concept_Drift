@@ -61,10 +61,14 @@ def add_device():
 def monitor_connect():
     ip = request.args.get('ip')
     port = request.args.get('port')
+    device_id = request.args.get('deviceId')
+    
     if not ip or not port:
         return jsonify({'success': False, 'message': '缺少ip或port参数'}), 400
+    
     monitor_controller = MonitorController()
-    return monitor_controller.start_session(ip, int(port))
+    print(f"开始连接设备 {ip}:{port}，设备ID: {device_id}")
+    return monitor_controller.start_session(ip, int(port), device_id)
     
 @main.route('/api/devices/update', methods=['POST'])
 def update_device():

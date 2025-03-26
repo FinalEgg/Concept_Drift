@@ -50,6 +50,22 @@ class DeviceController:
             )
             
             if success:
+                # 为新添加的设备训练教师模型
+                try:
+                    # 使用设备ID作为模型标识
+                    teacher_model = self.model_service.train_teacher_model(
+                        device_id=str(device.device_id),
+                        epochs=100,  # 可以根据需要调整训练轮数
+                        sample_size=1000  # 可以根据需要调整样本大小
+                    )
+                    
+                    
+                    print(f"设备 {device.device_id} 的模型训练完成")
+                except Exception as model_error:
+                    print(f"模型训练失败: {str(model_error)}")
+                    # 即使模型训练失败，我们仍然返回设备添加成功
+                    # 可以在日志中记录错误，但不影响设备添加流程
+                
                 return jsonify({
                     'success': True,
                     'message': '设备添加成功',

@@ -96,40 +96,71 @@
                     if (this.chartInstance) this.chartInstance.dispose();
                 },
                 methods: {
-                    // 初始化 ECharts 图表接口（图表数据后续实时更新时再填充）
                     initChart() {
                         const chartDom = this.$refs.chartContainer;
                         this.chartInstance = echarts.init(chartDom);
                         const option = {
-                            title: { text: '概念偏移指数监控', left: 'center' },
+                            title: { text: '模型预测一致率监控', left: 'center' },
                             tooltip: {
                                 trigger: 'axis',
                                 formatter: function(params) {
                                     const param = params[0];
-                                    return `${param.axisValue}<br />${param.marker}偏移指数：${param.data.toFixed(4)}`;
+                                    return `数据点: ${param.dataIndex + 1}<br />${param.marker}一致率：${param.value.toFixed(4)}`;
                                 }
                             },
                             xAxis: {
-                                type: 'time',
-                                name: '时间',
-                                axisLabel: { formatter: '{HH}:{mm}:{ss}' }
+                                type: 'category',
+                                name: '数据点',
+                                data: [], // 初始为空，会随着数据添加自动填充
                             },
-                            yAxis: { type: 'value', name: '概念偏移指数', min: 0, max: 1 },
+                            yAxis: { 
+                                type: 'value', 
+                                name: '预测一致率', 
+                                min: 0, 
+                                max: 1,
+                                splitLine: { show: true }
+                            },
+                            grid: {
+                                left: '5%',
+                                right: '5%',
+                                bottom: '10%',
+                                containLabel: true
+                            },
                             dataZoom: [
                                 { type: 'inside', start: 0, end: 100 },
                                 { start: 0, end: 100 }
                             ],
                             series: [{
-                                name: '偏移指数',
+                                name: '一致率',
                                 type: 'line',
                                 smooth: true,
-                                symbol: 'none',
-                                areaStyle: { opacity: 0.3 },
-                                data: []
+                                symbol: 'circle',
+                                symbolSize: 5,
+                                lineStyle: { width: 2 },
+                                itemStyle: {
+                                    color: '#0770FF'
+                                },
+                                areaStyle: { 
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: 'rgba(7, 112, 255, 0.5)' },
+                                        { offset: 1, color: 'rgba(7, 112, 255, 0.1)' }
+                                    ]),
+                                    opacity: 0.3 
+                                },
+                                data: [],
+                                markLine: {
+                                    data: [{ yAxis: 0.8, name: '阈值线' }],
+                                    symbol: 'none',
+                                    lineStyle: { color: '#ff0000', type: 'dashed' }
+                                }
                             }]
                         };
                         this.chartInstance.setOption(option);
-                        // 不再启动模拟数据（startFetchingData 被移除）
+                        
+                        // 添加响应式调整大小
+                        window.addEventListener('resize', () => {
+                            this.chartInstance.resize();
+                        });
                     },
                     // 根据设备信息构建表格表头：设备维度个数 +1 列“标签”，并清空表格数据
                     async fetchDeviceModel() {
@@ -139,9 +170,10 @@
                         this.tableData = [];
                     },
                     // 连接设备：调用后端 API（利用 ConnectionManager）尝试连接，连接成功后启动接收真实数据
+                    // 连接设备的方法需要更新，以处理从后端收到的增强消息
                     connectDevice() {
                         if (!this.device) return;
-                        const url = `/api/monitor/connect?ip=${this.device.ip}&port=${this.device.port}`;
+                        const url = `/api/monitor/connect?ip=${this.device.ip}&port=${this.device.port}&deviceId=${this.device.id}`;
                         this.eventSource = new EventSource(url);
                         this.eventSource.onopen = () => {
                             this.deviceStatus = '在线';
@@ -151,15 +183,37 @@
                         };
                         this.eventSource.onmessage = (event) => {
                             const messageData = event.data;
-                            // 以下处理数据的逻辑
+                            
+                            // 检查是否为初始连接消息
+                            if (messageData.includes('连接成功')) {
+                                console.log('收到连接成功消息');
+                                return; // 忽略初始连接消息
+                            }
+                            
+                            // 解析数据：第一个值是一致率，之后是原始消息的内容
                             const dataArr = messageData.trim().split(',');
                             if (dataArr.length < 1) return;
-                            const driftIndex = parseFloat(dataArr[0]);
+                            
+                            // 第一个值是一致率
+                            const consistencyRate = parseFloat(dataArr[0]);
                             const now = new Date();
-                            this.chartData.push([now.getTime(), driftIndex]);
+                            
+                            // 更新图表数据（使用一致率），不再使用时间戳
+                            this.chartData.push(consistencyRate);
                             if (this.chartData.length > 100) this.chartData.shift();
                             this.updateChart();
+                            
+                            // 表格值包括：原始漂移指数, 特征值, 学生预测, 教师预测, 漂移标志
                             const values = dataArr.slice(1).map(v => parseFloat(v).toFixed(4));
+                            
+                            // 如果检测到漂移（最后一个值为1），显示警告
+                            const driftDetected = parseInt(dataArr[dataArr.length - 1]) === 1;
+                            if (driftDetected) {
+                                this.feedbackMessage = `⚠️ 检测到概念漂移！一致率: ${consistencyRate.toFixed(4)}`;
+                            } else if (this.feedbackMessage && this.feedbackMessage.includes('检测到概念漂移')) {
+                                this.feedbackMessage = ''; // 清除警告
+                            }
+                            
                             this.tableData.push({
                                 timestamp: now.toLocaleTimeString(),
                                 values: values
@@ -219,12 +273,21 @@
                         };
                     },
                     updateChart() {
-                        if (this.chartInstance) {
-                            const seriesData = this.chartData.map(item => ({
-                                name: new Date(item[0]).toLocaleTimeString(),
-                                value: [item[0], item[1]]
-                            }));
-                            this.chartInstance.setOption({ series: [{ data: seriesData }] });
+                        if (this.chartInstance && this.chartData.length > 0) {
+                            // 生成数据点索引，从1开始
+                            const categories = Array.from({ length: this.chartData.length }, (_, i) => i + 1);
+                            
+                            console.log('更新图表，当前数据点数：', this.chartData.length);
+                            console.log('最新数据点：', this.chartData[this.chartData.length-1]);
+                            
+                            this.chartInstance.setOption({
+                                xAxis: {
+                                    data: categories 
+                                },
+                                series: [{
+                                    data: this.chartData
+                                }]
+                            });
                         }
                     },
                     // 编辑设备：跳转到编辑页面，页面将预填设备当前信息（通过 URL 参数传递 device.id）

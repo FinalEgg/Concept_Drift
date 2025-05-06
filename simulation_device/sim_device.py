@@ -97,7 +97,7 @@ class SimDevice:
     def send_data(self, conn: socket.socket):
         """
         连接成功后，每两秒使用SEAGenerator产生一条数据，
-        使用模型预测标签，并发送给服务器
+        使用模型预测标签，并发送给服务器，在发送15次数据后发生概念漂移
         """
         try:
             print("开始发送数据...")
@@ -105,14 +105,22 @@ class SimDevice:
                 print("错误：模型未加载")
                 return
             
+            data_count = 0  # 添加计数器，用于跟踪发送的数据量
+            
             while True:
+                # 检查是否需要触发概念漂移
+                if data_count == 20:
+                    print("触发概念漂移...")
+                    # 创建一个新的SEAGenerator，使用不同的分类函数
+                    self.stream = SEAGenerator(classification_function=3, random_state=42)
+                    print("概念漂移已触发，分类函数已从0更改为1")
+                
                 # 使用SEAGenerator生成一个样本
                 X, y_true = self.stream.next_sample()
                 
                 # 转换为张量并预测
                 X_tensor = torch.FloatTensor(X).to(self.device)
                 
-
                 with torch.no_grad():
                     # 确保维度正确
                     if X_tensor.dim() == 1:
@@ -121,16 +129,23 @@ class SimDevice:
                     y_pred = self.model(X_tensor)
                     prediction = 1 if y_pred.item() > 0.5 else 0
                 
-                # 构造发送数据：添加一个随机漂移指数（0-1之间），后跟特征值和预测标签
-                drift_index = round(random.uniform(0, 1), 4)
+                # 构造发送数据：添加一个漂移指数（根据是否发生漂移调整），后跟特征值和预测标签
+                if data_count < 15:
+                    drift_index = round(random.uniform(0, 0.3), 4)  # 漂移前，较小的值
+                else:
+                    drift_index = round(random.uniform(0.7, 1.0), 4)  # 漂移后，较大的值
+                    
                 data = [drift_index] + X[0].tolist() + [prediction]
                 data_str = ','.join(map(str, data)) + "\n"
                 
                 conn.sendall(data_str.encode('utf-8'))
-                print(f"发送数据: {data_str.strip()}")
+                print(f"发送数据 #{data_count + 1}: {data_str.strip()}")
+                
+                # 增加计数器
+                data_count += 1
                 
                 # 每两秒发送一次数据
-                time.sleep(2)
+                time.sleep(1)
                 
         except Exception as e:
             print(f"发送数据过程中出现错误: {e}")

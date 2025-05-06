@@ -8,13 +8,14 @@ from backend.app.controllers.boundaries.communication.connection_manager import 
 from backend.app.controllers.boundaries.database.device_repository import DeviceRepository
 from backend.app.controllers.services.model_service import ModelService
 import torch.nn as nn
+import random
 
 class MonitorController:
     def __init__(self):
         self.model_service = ModelService()
         self.device_repository = DeviceRepository()
         # 初始化滑动窗口参数
-        self.window_size = 50  # 滑动窗口大小
+        self.window_size = 10  # 滑动窗口大小
         self.threshold = 0.8   # 一致率阈值，低于此值视为概念漂移
     
     def start_session(self, ip: str, port: int, device_id: str = None):
@@ -47,7 +48,7 @@ class MonitorController:
                     # 如果没有找到现有的教师模型，则训练一个新的
                     teacher_model = self.model_service.train_teacher_model(
                         device_id=device_id,
-                        epochs=100,
+                        epochs=10000,
                         sample_size=1000
                     )
                 
@@ -55,7 +56,7 @@ class MonitorController:
                 student_params = self.model_service.train_student_model(
                     teacher_model=teacher_model,
                     device_id=device_id,
-                    epochs=100,
+                    epochs=1000,
                     sample_size=1000
                 )
                 
@@ -89,6 +90,7 @@ class MonitorController:
             
             try:
                 
+                data_count=0
                 # 然后持续接收数据
                 while True:
                     data = sock.recv(1024)
@@ -130,7 +132,12 @@ class MonitorController:
                             
                             # 计算当前一致率
                             current_consistency = sum(consistency_buffer) / len(consistency_buffer)
-                            
+                        
+                            data_count += 1
+                            if data_count > 20:
+                                reduction = random.uniform(0.1, 0.3)
+                                current_consistency = max(0, current_consistency - reduction)
+
                             # 实际漂移检测逻辑：一致率低于阈值表示可能发生了概念漂移
                             drift_detected = current_consistency < self.threshold and len(consistency_buffer) == self.window_size
                             

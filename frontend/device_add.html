@@ -29,9 +29,10 @@
                     min="1" max="65535" required>
             </div>
             <div class="form-group">
-                <label for="dimensions">数据维度数量</label>
-                <input type="number" id="dimensions" v-model="dimensions"
-                    min="1" required>
+                <label for="scenario">场景选择</label>
+                <select id="scenario" v-model="selectedScenario" @change="updateDimensions" required>
+                    <option value="factory">智慧工厂场景</option>
+                </select>
             </div>
             <button type="submit" class="auth-btn">添加设备</button>
             <div class="error-message" v-if="errorMessage">
@@ -49,10 +50,15 @@
             deviceName: '',
             ipAddress: '',
             port: null,
-            dimensions: null,
+            selectedScenario: 'factory',
+            dimensions: 3, // 默认设置为3，对应智慧工厂场景
             errorMessage: ''
         },
         methods: {
+            updateDimensions() {
+                // 目前只有一个场景选项，直接设置为3
+                this.dimensions = 3;
+            },
             async handleAddDevice() {
             try {
                 const userStr = localStorage.getItem('user');

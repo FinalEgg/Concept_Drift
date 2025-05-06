@@ -52,7 +52,8 @@
                             <tbody>
                                 <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
                                     <td>{{ row.timestamp }}</td>
-                                    <td v-for="(header, colIndex) in tableHeaders" :key="colIndex">{{ row.values[colIndex] }}</td>
+                                    <!-- 修改这里：将 colIndex 替换为 colIndex + 1 来访问 values 数组 -->
+                                    <td v-for="(header, colIndex) in tableHeaders" :key="colIndex">{{ row.values[colIndex + 1] }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -164,9 +165,9 @@
                     },
                     // 根据设备信息构建表格表头：设备维度个数 +1 列“标签”，并清空表格数据
                     async fetchDeviceModel() {
-                        const dims = this.device && this.device.dim ? parseInt(this.device.dim) : 0;
-                        this.tableHeaders = dims > 0 ? Array.from({ length: dims }, (_, i) => `维度 ${i + 1}`) : [];
-                        this.tableHeaders.push("标签");
+                        // 无需关心设备维度，直接使用固定的三个维度名称
+                        this.tableHeaders = ['振动频谱', '温度', '压力'];
+                        this.tableHeaders.push("正常运行");
                         this.tableData = [];
                     },
                     // 连接设备：调用后端 API（利用 ConnectionManager）尝试连接，连接成功后启动接收真实数据

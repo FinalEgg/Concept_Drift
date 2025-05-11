@@ -163,11 +163,32 @@
                             this.chartInstance.resize();
                         });
                     },
-                    // 根据设备信息构建表格表头：设备维度个数 +1 列“标签”，并清空表格数据
                     async fetchDeviceModel() {
-                        // 无需关心设备维度，直接使用固定的三个维度名称
-                        this.tableHeaders = ['振动频谱', '温度', '压力'];
-                        this.tableHeaders.push("正常运行");
+                        // 根据设备维度设置对应的表头
+                        if (this.device && this.device.dim) {
+                            switch (parseInt(this.device.dim)) {
+                                case 1: // 智能农业病虫害预警
+                                    this.tableHeaders = ['土壤湿度', '叶片温度', '二氧化碳浓度'];
+                                    break;
+                                case 2: // 水质污染实时监测
+                                    this.tableHeaders = ['酸碱度', '浊度', '溶解氧'];
+                                    break;
+                                case 3: // 智慧工厂场景
+                                    this.tableHeaders = ['振动频率', '温度', '压力'];
+                                    break;
+                                case 4: // 冷链运输变质预警
+                                    this.tableHeaders = ['箱内温度', '湿度', '乙烯气体浓度'];
+                                    break;
+                                default:
+                                    // 默认使用智慧工厂场景的标签
+                                    this.tableHeaders = ['振动频率', '温度', '压力'];
+                            }
+                            // 无论哪种情况，都添加预测标签
+                            this.tableHeaders.push("预测结果");
+                        } else {
+                            // 如果没有设备信息或维度信息，使用默认标签
+                            this.tableHeaders = ['特征1', '特征2', '特征3', '预测结果'];
+                        }
                         this.tableData = [];
                     },
                     // 连接设备：调用后端 API（利用 ConnectionManager）尝试连接，连接成功后启动接收真实数据

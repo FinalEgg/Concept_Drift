@@ -51,9 +51,29 @@ def init_database():
         print(f"数据库初始化失败: {e}")
         return False
 
-def start_sim_device():
-    sim_device = SimDevice(host='127.0.0.1', port=9000)
+def start_sim_device(host='127.0.0.1', port=9000):
+    """启动单个模拟设备，使用指定的主机和端口"""
+    sim_device = SimDevice(host=host, port=port)
     sim_device.start()
+
+def start_multiple_sim_devices():
+    """启动多个模拟设备，使用不同的默认端口"""
+    # 定义默认端口
+    default_ports = [9000, 9001, 9002, 9003]
+    threads = []
+    
+    # 启动多个模拟设备
+    for port in default_ports:
+        print(f"尝试在端口 {port} 启动模拟设备...")
+        thread = threading.Thread(
+            target=start_sim_device, 
+            args=('127.0.0.1', port),
+            daemon=True
+        )
+        thread.start()
+        threads.append(thread)
+    
+    return threads
 
 app = create_app()
 
@@ -65,9 +85,8 @@ if __name__ == '__main__':
             print("无法初始化数据库，请确保MySQL服务已启动并具有正确的访问权限")
             exit(1)
     
-    # 启动模拟设备
-    sim_thread = threading.Thread(target=start_sim_device, daemon=True)
-    sim_thread.start()
+    # 启动多个模拟设备
+    sim_threads = start_multiple_sim_devices()
     
     # 启动Flask应用
     app.run(debug=True)

@@ -31,7 +31,10 @@
             <div class="form-group">
                 <label for="scenario">场景选择</label>
                 <select id="scenario" v-model="selectedScenario" @change="updateDimensions" required>
+                    <option value="agriculture">智能农业病虫害预警</option>
+                    <option value="water">水质污染实时监测</option>
                     <option value="factory">智慧工厂场景</option>
+                    <option value="coldchain">冷链运输变质预警</option>
                 </select>
             </div>
             <button type="submit" class="auth-btn">添加设备</button>
@@ -56,8 +59,23 @@
         },
         methods: {
             updateDimensions() {
-                // 目前只有一个场景选项，直接设置为3
-                this.dimensions = 3;
+                // 根据选择的场景设置相应的dimensions值
+                switch(this.selectedScenario) {
+                    case 'agriculture':
+                        this.dimensions = 1;
+                        break;
+                    case 'water':
+                        this.dimensions = 2;
+                        break;
+                    case 'factory':
+                        this.dimensions = 3;
+                        break;
+                    case 'coldchain':
+                        this.dimensions = 4;
+                        break;
+                    default:
+                        this.dimensions = 3; // 默认为智慧工厂场景
+                }
             },
             async handleAddDevice() {
             try {

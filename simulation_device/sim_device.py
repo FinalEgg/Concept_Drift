@@ -25,6 +25,7 @@ class SimDevice:
         """
         启动模拟设备，动态选择空闲端口等待云服务器连接，连接成功后先接收模型参数
         然后每两秒生成一个数据，使用模型预测标签，并发送给服务器
+        设备将持续运行，即使连接超时也会重新等待连接
         """
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -37,19 +38,38 @@ class SimDevice:
             except OSError as e:
                 print(f"端口 {bind_port} 被占用，尝试其他端口...")
                 bind_port = random.randint(9000, 9999)
+        
         server_sock.listen(1)
-        try:
-            print(f"SimDevice 正在 {self.host}:{bind_port} 监听连接...")
-            conn, addr = server_sock.accept()
-            print(f"接收到来自 {addr} 的连接")
-            
-            # 先接收模型参数，再发送数据
-            self.receive_model(conn)
-            self.send_data(conn)
-        except Exception as e:
-            print(f"SimDevice 运行错误: {e}")
-        finally:
-            server_sock.close()
+        print(f"SimDevice 正在 {self.host}:{bind_port} 监听连接...")
+        
+        # 外部循环，使设备持续运行
+        while True:
+            conn = None
+            try:
+                # 设置接受连接的超时时间
+                server_sock.settimeout(60)  # 60秒超时
+                conn, addr = server_sock.accept()
+                server_sock.settimeout(None)  # 接受连接后取消超时
+                
+                print(f"接收到来自 {addr} 的连接")
+                
+                # 先接收模型参数，再发送数据
+                self.receive_model(conn)
+                self.send_data(conn)
+                
+            except socket.timeout:
+                print("等待连接超时，继续监听...")
+                continue
+            except Exception as e:
+                print(f"SimDevice 运行错误: {e}")
+            finally:
+                # 确保当前连接被关闭，但服务器套接字保持开启
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                print("连接已关闭，重新等待新的连接...")
     
     def receive_model(self, conn: socket.socket):
         """
@@ -57,6 +77,9 @@ class SimDevice:
         """
         try:
             print("等待接收模型参数...")
+            
+            # 设置接收超时
+            conn.settimeout(30)  # 30秒超时
             
             # 接收数据大小
             data_size_bytes = conn.recv(4)
@@ -90,6 +113,9 @@ class SimDevice:
             self.model.eval()
             print("模型加载成功")
             
+        except socket.timeout:
+            print("接收模型参数超时")
+            raise
         except Exception as e:
             print(f"接收模型参数时出错: {e}")
             raise
@@ -106,6 +132,9 @@ class SimDevice:
                 return
             
             data_count = 0  # 添加计数器，用于跟踪发送的数据量
+            
+            # 设置发送数据超时
+            conn.settimeout(5)  # 5秒超时
             
             while True:
                 # 检查是否需要触发概念漂移
@@ -147,7 +176,7 @@ class SimDevice:
                 # 每两秒发送一次数据
                 time.sleep(1)
                 
+        except socket.timeout:
+            print("发送数据超时")
         except Exception as e:
             print(f"发送数据过程中出现错误: {e}")
-        finally:
-            conn.close()

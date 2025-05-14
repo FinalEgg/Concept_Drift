@@ -48,7 +48,7 @@ class MonitorController:
                     # 如果没有找到现有的教师模型，则训练一个新的
                     teacher_model = self.model_service.train_teacher_model(
                         device_id=device_id,
-                        epochs=10000,
+                        epochs=1000,
                         sample_size=1000
                     )
                 
@@ -56,7 +56,7 @@ class MonitorController:
                 student_params = self.model_service.train_student_model(
                     teacher_model=teacher_model,
                     device_id=device_id,
-                    epochs=1000,
+                    epochs=100,
                     sample_size=1000
                 )
                 

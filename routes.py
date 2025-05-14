@@ -1,9 +1,10 @@
 # routes.py
-
 from flask import Blueprint, send_from_directory, request, jsonify
 from backend.app.controllers.device_controller import DeviceController
 from backend.app.controllers.auth_controller import AuthController
 from backend.app.controllers.monitor_controller import MonitorController
+from flask import send_from_directory, make_response
+import os
 import json
 
 main = Blueprint('main', __name__)
@@ -13,9 +14,32 @@ auth_controller = AuthController()
 def index():
     return send_from_directory('frontend', 'index.html')
 
+
+# 将 @app.route 改为 @main.route，并删除或替换先前的 serve_static 函数
+@main.route('/scripts/<path:filename>')
+def serve_script(filename):
+    response = make_response(send_from_directory(os.path.join('frontend', 'scripts'), filename))
+    # 脚本文件缓存1天
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
+
+# 修改静态文件处理函数添加缓存控制，替换现有的 serve_static 函数
 @main.route('/static/<path:path>')
 def serve_static(path):
-    return send_from_directory('frontend/static', path)
+    response = make_response(send_from_directory('frontend/static', path))
+    
+    # 根据文件类型设置不同的缓存策略
+    if path.endswith('.css') or path.endswith('.js'):
+        # CSS和JS文件缓存1天
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+    elif path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.ico')):
+        # 图片缓存7天
+        response.headers['Cache-Control'] = 'public, max-age=604800'
+    else:
+        # 其他文件缓存4小时
+        response.headers['Cache-Control'] = 'public, max-age=14400'
+    
+    return response
 
 @main.route('/login.html')
 def login_page():
